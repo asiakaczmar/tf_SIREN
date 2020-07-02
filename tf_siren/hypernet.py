@@ -88,7 +88,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
-        coords, _ = inputs
+        coords, pixels, clean_image = inputs
 
         embeddings = self.set_encoder(inputs)
 
@@ -100,9 +100,9 @@ class NeuralProcessHyperNet(tf.keras.Model):
     @tf.function
     def train_step(self, data):
         with tf.GradientTape() as tape:
-            coords, pixels = data
+            coords, pixels, clean_pixels = data
             decoded_images, embeddings = self.call(data)
-            image_loss = self.loss(y_true=pixels, y_pred=decoded_images)
+            image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
             loss = self.lambda_mse * image_loss
 
             # embedding loss

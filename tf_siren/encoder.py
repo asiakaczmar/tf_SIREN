@@ -57,7 +57,7 @@ class SetEncoder(tf.keras.Model):
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
-        coords, pixels = inputs
+        coords, pixels, _ = inputs
         inputs = tf.concat([coords, pixels], axis=-1)
         embedding = self.net(inputs)
 
