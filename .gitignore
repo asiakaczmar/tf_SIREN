@@ -131,3 +131,6 @@ dmypy.json
 # Local files
 logs/*
 checkpoints/*
+
+#.pycharm
+.idea
