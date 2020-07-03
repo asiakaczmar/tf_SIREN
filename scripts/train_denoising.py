@@ -24,11 +24,12 @@ rows, cols, channels = input_shape
 pixel_count = rows * cols
 
 
-def add_noise(images):
-    image_max = np.max(images)
-    images /= image_max
-    noisy_images = images + np.random.normal(NOISE_LOC, NOISE_STD, size=images.shape)
-    return (noisy_images - np.min(noisy_images))/np.ptp(noisy_images)
+@tf.function
+def add_noise(image):
+    noise = tf.random.normal(shape=tf.shape(image), mean=NOISE_LOC, stddev=NOISE_STD, dtype=tf.float32   )
+    noisy_img = image + noise
+    noisy_img -= tf.math.reduce_min(noisy_img)
+    return noisy_img/(tf.math.reduce_max(noisy_img))
 
 
 @tf.function
