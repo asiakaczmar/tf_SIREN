@@ -9,7 +9,7 @@ from tf_siren.hypernet import NeuralProcessHyperNet
 
 #For now we will assume width and height are the same
 ROWS_COLS = 32
-BATCH_SIZE = 200
+BATCH_SIZE = 512
 EPOCHS = 600
 LATENT_DIM = 256
 NOISE_LOC = 0
@@ -56,9 +56,8 @@ model = NeuralProcessHyperNet(
     encoder_activation='sine', hyper_activation='relu', final_activation='sigmoid',  # activations
     lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100.0,  # Loss scaling
 )
-
 # instantiate model
-dummy_input = [tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 2]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3]), tf.zeros([BATCH_SIZE, ROWS_COLS, ROWS_COLS, 3])]
+dummy_input = [tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 2]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3])]
 _ = model(dummy_input)
 
 model.summary()
