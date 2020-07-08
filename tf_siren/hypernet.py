@@ -131,6 +131,33 @@ class NeuralProcessHyperNet(tf.keras.Model):
         return {'loss': loss, 'image_loss': image_loss, 'embedding_loss': embedding_loss, 'reg_loss': reg_loss}
 
     @tf.function
+    def train_step(self, data):
+        coords, pixels, clean_pixels = data
+        decoded_images, embeddings = self.call(data)
+        image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
+        loss = self.lambda_mse * image_loss
+
+        # embedding loss
+        embedding_loss = self.lambda_embedding / self.set_encoder.latent_dim * tf.reduce_sum(tf.square(embeddings))
+        loss += embedding_loss
+
+        # l2 regularization losses
+        reg = []
+        params = self.hyper_net.trainable_variables
+        for param in params:
+            reg.append(tf.reduce_sum(tf.square(param)))
+
+        if self.hypernet_param_count is None:
+            self.hypernet_param_count = self.hyper_net.count_params()
+
+        reg_loss = self.lambda_hyper / self.hypernet_param_count * tf.add_n(reg)
+        loss += reg_loss
+
+        # Note: `image_loss` is the *unscaled* image loss;
+        # I.E. lambda_mse scaling is not applied to it. It is used only for logging.
+        return {'loss': loss, 'image_loss': image_loss, 'embedding_loss': embedding_loss, 'reg_loss': reg_loss}
+
+    @tf.function
     def predict_with_context(self, coords, embeddings):
         param_list = self.hyper_net(embeddings)
         decoded_images = self.hyper_net.inner_call(coords, param_list)

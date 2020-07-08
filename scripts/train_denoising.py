@@ -114,4 +114,4 @@ callbacks = [
     tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=2, verbose=1)
 ]
 
-model.fit(ds, epochs=EPOCHS, callbacks=callbacks, verbose=1)#, validation_data=val_ds)
+model.fit(ds, epochs=EPOCHS, callbacks=callbacks, verbose=1, validation_data=val_ds)
