@@ -15,10 +15,12 @@ LATENT_DIM = 256
 NOISE_LOC = 0
 NOISE_STD = 0.2
 PIXEL_NUMBER = ROWS_COLS*ROWS_COLS
-ds, ds_info = tfds.load('cifar10', split='train', with_info=True)  # type: tf.data.Dataset
+
+ds, ds_info = tfds.load('cifar10', split='train[:-10%]', with_info=True)  # type: tf.data.Dataset
+val_ds, _ = tfds.load('cifar10', split='train[-10%:]', with_info=True)
 
 input_shape = ds_info.features['image'].shape
-dataset_len = ds_info.splits['train'].num_examples
+train_dataset_len = ds_info.splits['train'].num_examples
 
 rows, cols, channels = input_shape
 pixel_count = rows * cols
@@ -43,10 +45,16 @@ def build_train_tensors(ds):
     return img_mask, noisy_image, original
 
 
-ds = ds.map(build_train_tensors, num_parallel_calls=2 * os.cpu_count())
-ds = ds.shuffle(dataset_len)
-ds = ds.batch(BATCH_SIZE)
-ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+def process_ds(ds, shuffle=True, dataset_len=None):
+    ds = ds.map(build_train_tensors, num_parallel_calls=2 * os.cpu_count())
+    if shuffle:
+        ds = ds.shuffle(dataset_len)
+    ds = ds.batch(BATCH_SIZE)
+    ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+    return ds
+
+ds = process_ds(ds, dataset_len=train_dataset_len)
+val_ds = process_ds(val_ds, shuffle=False)
 
 # Build model
 model = NeuralProcessHyperNet(
@@ -63,7 +71,7 @@ _ = model(dummy_input)
 model.summary()
 
 BATCH_SIZE = min(BATCH_SIZE, ROWS_COLS*ROWS_COLS)
-num_steps = int(dataset_len * EPOCHS / BATCH_SIZE)
+num_steps = int(train_dataset_len * EPOCHS / BATCH_SIZE)
 print("Total training steps : ", num_steps)
 learning_rate = tf.keras.optimizers.schedules.PolynomialDecay(0.00005, decay_steps=num_steps, end_learning_rate=0.00002,
                                                               power=2.0)
@@ -93,7 +101,7 @@ if os.path.exists(checkpoint_dir + 'checkpoint'):
     model.load_weights(checkpoint_path)
 
 timestamp = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
-logdir = os.path.join('../logs/cifar10/inpainting/', timestamp)
+logdir = os.path.join('../logs/cifar10/denoising/', timestamp)
 
 if not os.path.exists(logdir):
     os.makedirs(logdir)
@@ -102,7 +110,8 @@ callbacks = [
     # Select lowest pixel mse loss as checkpoint saver.
     tf.keras.callbacks.ModelCheckpoint(checkpoint_dir + 'model', monitor='image_loss', verbose=0,
                                        save_best_only=True, save_weights_only=True, mode='min'),
-    tf.keras.callbacks.TensorBoard(logdir, update_freq='batch', profile_batch='500,520')
+    tf.keras.callbacks.TensorBoard(logdir, update_freq='batch', profile_batch='500,520'),
+    tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=2, verbose=1)
 ]
 
-model.fit(ds, epochs=EPOCHS, callbacks=callbacks, verbose=1)
+model.fit(ds, epochs=EPOCHS, callbacks=callbacks, verbose=1)#, validation_data=val_ds)
