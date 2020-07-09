@@ -20,7 +20,7 @@ ds, ds_info = tfds.load('cifar10', split='train[:-10%]', with_info=True)  # type
 val_ds, _ = tfds.load('cifar10', split='train[-10%:]', with_info=True)
 
 input_shape = ds_info.features['image'].shape
-train_dataset_len = ds_info.splits['train'].num_examples
+train_dataset_len = int(ds_info.splits['train'].num_examples * 0.9)
 
 rows, cols, channels = input_shape
 pixel_count = rows * cols
@@ -90,7 +90,7 @@ def loss_func(y_true, y_pred):
 
 model.compile(optimizer, loss=loss_func, run_eagerly=False)
 
-checkpoint_dir = 'checkpoints/cifar10/inpainting/'
+checkpoint_dir = 'checkpoints/cifar10/denoising/'
 checkpoint_path = checkpoint_dir + 'model'
 if not os.path.exists(checkpoint_dir):
     os.makedirs(checkpoint_dir)

@@ -88,12 +88,13 @@ class NeuralProcessHyperNet(tf.keras.Model):
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
-        coords, pixels, clean_image = inputs
-
+        #coords, pixels, clean_image = inputs
+        coords = inputs[0]
+        pixels = inputs[1]
+        clean_image = inputs[2]
         embeddings = self.set_encoder(inputs)
 
         param_list = self.hyper_net(embeddings)
-
         decoded_images = self.hyper_net.inner_call(coords, param_list)
         return decoded_images, embeddings
 
@@ -131,7 +132,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
         return {'loss': loss, 'image_loss': image_loss, 'embedding_loss': embedding_loss, 'reg_loss': reg_loss}
 
     @tf.function
-    def train_step(self, data):
+    def test_step(self, data):
         coords, pixels, clean_pixels = data
         decoded_images, embeddings = self.call(data)
         image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
