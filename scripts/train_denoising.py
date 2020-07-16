@@ -16,8 +16,8 @@ NOISE_LOC = 0
 NOISE_STD = 0.2
 PIXEL_NUMBER = ROWS_COLS*ROWS_COLS
 
-ds, ds_info = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets/cifar10/',  split='train[:-10%]', with_info=True)  # type: tf.data.Dataset
-val_ds, _ = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets/cifar10/', split='train[-10%:]', with_info=True)
+ds, ds_info = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets',  split='train[:-10%]', with_info=True)  # type: tf.data.Dataset
+val_ds, _ = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets', split='train[-10%:]', with_info=True)
 
 input_shape = ds_info.features['image'].shape
 train_dataset_len = int(ds_info.splits['train'].num_examples * 0.9)
