@@ -4,15 +4,11 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from tf_siren.hypernet import NeuralProcessHyperNet
 import tensorflow_datasets as tfds
-import os
-import itertools
-NOISE_LOC = 0
-NOISE_STD = 0.1
-ROWS_COLS = 32
-PIXEL_NUMBER = ROWS_COLS*ROWS_COLS
-BATCH_SIZE = 1
-LATENT_DIM = 256
-test_ds, ds_info = tfds.load('cifar10', split='test', with_info=True)
+
+
+from scripts.utils import process_ds, LATENT_DIM, PIXEL_NUMBER
+
+test_ds, ds_info = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets', split='test', with_info=True)
 original_test_ds = test_ds
 input_shape = ds_info.features['image'].shape
 rows, cols, channels = input_shape
@@ -20,31 +16,8 @@ pixel_count = rows * cols
 test_dataset_len = ds_info.splits['test'].num_examples
 
 
-@tf.function
-def add_noise(image):
-    noise = tf.random.normal(shape=tf.shape(image), mean=NOISE_LOC, stddev=NOISE_STD, dtype=tf.float32   )
-    noisy_img = image + noise
-    noisy_img -= tf.math.reduce_min(noisy_img)
-    return noisy_img/(tf.math.reduce_max(noisy_img))
 
-def build_eval_tensors(ds):
-    img_mask_idx = np.array(list(itertools.product(range(ROWS_COLS), range(ROWS_COLS))))
-    original = tf.cast(ds['image'], tf.float32) / 255.
-    noisy_image = add_noise(original)
-    noisy_image = tf.gather_nd(noisy_image, img_mask_idx)
-    original = tf.gather_nd(original, img_mask_idx)
-    img_mask = tf.cast(img_mask_idx, tf.float32) / ROWS_COLS
-    return img_mask, noisy_image, original
-
-def process_ds(ds, shuffle=True, dataset_len=None):
-    ds = ds.map(build_eval_tensors, num_parallel_calls=2 * os.cpu_count())
-    if shuffle:
-        ds = ds.shuffle(dataset_len)
-    ds = ds.batch(BATCH_SIZE)
-    ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
-    return ds
-
-test_ds = process_ds(test_ds, dataset_len=test_dataset_len)
+test_ds = process_ds(test_ds, dataset_len=test_dataset_len, batch_size=1)
 
 
 # Build model
@@ -53,7 +26,7 @@ model = NeuralProcessHyperNet(
     siren_units=LATENT_DIM, hyper_units=LATENT_DIM, latent_dim=LATENT_DIM,  # number of units
     num_siren_layers=3, num_hyper_layers=1, num_encoder_layers=2,  # number of layers
     encoder_activation='sine', hyper_activation='relu', final_activation='sigmoid',  # activations
-    lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100.0,  # Loss scaling
+    lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100.0, encoder='conv' # Loss scaling
 )
 
 
@@ -82,16 +55,13 @@ for one_set in test_ds.take(5):
     
     
     
-    fig, axes = plt.subplots(1, 3)
+    fig, axes = plt.subplots(1, 2)
     plt.sca(axes[0])
-    plt.imshow(one_set[2].numpy().reshape(rows, cols, channels))
+    plt.imshow(one_set[0].numpy().reshape(rows, cols, channels))
     plt.title("Ground Truth Image")
+
     
     plt.sca(axes[1])
-    plt.imshow(one_set[1].numpy().reshape(rows, cols, channels))
-    plt.title("Noisy Image")
-    
-    plt.sca(axes[2])
     plt.imshow(predicted_image)
     plt.title("Predicted Image")
     
