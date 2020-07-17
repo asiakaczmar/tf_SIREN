@@ -137,7 +137,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
 
     @tf.function
     def test_step(self, data):
-        coords, pixels, clean_pixels = data
+        original_image, coords, pixels, clean_pixels = data
         decoded_images, embeddings = self.call(data)
         image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
         loss = self.lambda_mse * image_loss
