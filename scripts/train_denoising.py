@@ -17,7 +17,7 @@ NOISE_STD = 0.2
 PIXEL_NUMBER = ROWS_COLS*ROWS_COLS
 
 ds, ds_info = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets',  split='train[:-10%]', with_info=True)  # type: tf.data.Dataset
-val_ds, _ = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets', split='train[-10%:]', with_info=True)
+val_ds, _ = tfds.load('cifar10', data_dir='/cluster/work/scopem/kjoanna/tensorflow_datasets',split='train[-10%:]', with_info=True)
 
 input_shape = ds_info.features['image'].shape
 train_dataset_len = int(ds_info.splits['train'].num_examples * 0.9)
@@ -36,13 +36,12 @@ def add_noise(image):
 @tf.function
 def build_train_tensors(ds):
     img_mask_idx = np.array(list(itertools.product(range(ROWS_COLS), range(ROWS_COLS))))
-    original = tf.cast(ds['image'], tf.float32) / 255.
-    noisy_image = add_noise(original)
+    original_image = tf.cast(ds['image'], tf.float32) / 255.
+    noisy_image = add_noise(original_image)
     noisy_image = tf.gather_nd(noisy_image, img_mask_idx)
-    original = tf.gather_nd(original, img_mask_idx)
+    original = tf.gather_nd(original_image, img_mask_idx)
     img_mask = tf.cast(img_mask_idx, tf.float32) / ROWS_COLS
-    return img_mask, noisy_image, original
-
+    return original_image, img_mask, noisy_image, original
 
 def process_ds(ds, shuffle=True, dataset_len=None):
     ds = ds.map(build_train_tensors, num_parallel_calls=2 * os.cpu_count())
@@ -61,10 +60,11 @@ model = NeuralProcessHyperNet(
     siren_units=LATENT_DIM, hyper_units=LATENT_DIM, latent_dim=LATENT_DIM,  # number of units
     num_siren_layers=3, num_hyper_layers=1, num_encoder_layers=2,  # number of layers
     encoder_activation='sine', hyper_activation='relu', final_activation='sigmoid',  # activations
-    lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100.0,  # Loss scaling
+    lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100.0, # Loss scaling
+    encoder='conv'
 )
 # instantiate model
-dummy_input = [tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 2]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3])]
+dummy_input = [tf.zeros([BATCH_SIZE, ROWS_COLS, ROWS_COLS, 3]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 2]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3]), tf.zeros([BATCH_SIZE, PIXEL_NUMBER, 3])]
 _ = model(dummy_input)
 
 model.summary()
@@ -114,3 +114,4 @@ callbacks = [
 ]
 
 model.fit(ds, epochs=EPOCHS, callbacks=callbacks, verbose=1, validation_data=val_ds)
+

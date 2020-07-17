@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from tf_siren import siren_mlp
-from tf_siren.encoder import SetEncoder
+from tf_siren.encoder import SetEncoder, ConvEncoder
 from tf_siren.meta import meta_siren_mlp
 
 
@@ -27,6 +27,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
                  lambda_hyper: float = 100.0,
                  lambda_mse: float = 1.0,
                  hypernet_param_count=None,
+                 encoder=None,
                  **kwargs):
         """
         SIREN HyperNetwork from the paper [Implicit Neural Representations with Periodic Activation Functions](https://arxiv.org/abs/2006.09661).
@@ -80,19 +81,22 @@ class NeuralProcessHyperNet(tf.keras.Model):
             num_layers=num_siren_layers, num_hyper_layers=num_hyper_layers,
             use_bias=use_bias,
         )
-
-        self.set_encoder = SetEncoder(
-            output_units=latent_dim, hidden_units=latent_dim, num_hidden_layers=num_encoder_layers,
-            activation=encoder_activation, w0=encoder_w0, use_bias=use_bias
-        )
+        if encoder=='conv':
+            self.set_encoder = ConvEncoder()
+        else:
+            self.set_encoder = SetEncoder(
+                output_units=latent_dim, hidden_units=latent_dim, num_hidden_layers=num_encoder_layers,
+                activation=encoder_activation, w0=encoder_w0, use_bias=use_bias
+            )
 
     @tf.function
     def call(self, inputs, training=None, mask=None):
         #coords, pixels, clean_image = inputs
-        coords = inputs[0]
-        pixels = inputs[1]
-        clean_image = inputs[2]
-        embeddings = self.set_encoder(inputs)
+        whole_image = inputs[0]
+        coords = inputs[1]
+        pixels = inputs[2]
+        clean_pixels = inputs[3]
+        embeddings = self.set_encoder(whole_image)
 
         param_list = self.hyper_net(embeddings)
         decoded_images = self.hyper_net.inner_call(coords, param_list)
@@ -101,7 +105,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
     @tf.function
     def train_step(self, data):
         with tf.GradientTape() as tape:
-            coords, pixels, clean_pixels = data
+            original_image, coords, pixels, clean_pixels = data
             decoded_images, embeddings = self.call(data)
             image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
             loss = self.lambda_mse * image_loss

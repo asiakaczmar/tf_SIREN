@@ -1,6 +1,35 @@
 import tensorflow as tf
 from tf_siren import siren
+from tensorflow.keras.layers import Conv2D, Input, Dense, Reshape, Conv2DTranspose,\
+   Activation, BatchNormalization, ReLU, Concatenate, Flatten
+from tensorflow.keras.models import Model
 
+class ConvEncoder(tf.keras.Model):
+    def __init__(self, *args, **kwargs):
+        self.latent_dim = 256
+        super().__init__(*args, **kwargs)
+        self.inp = Input(shape=(32, 32, 3), name='dae_input')
+        conv_block1 = self.conv_block(self.inp, 32, 3)
+        conv_block2 = self.conv_block(conv_block1, 64, 3)
+        conv_block3 = self.conv_block(conv_block2, 128, 3)
+        conv_block4 = self.conv_block(conv_block3, 256, 3)
+        conv_block5 = self.conv_block(conv_block4, 256, 3)
+        self.out = Flatten()(conv_block5)
+        self.model = Model(self.inp, self.out, name='dae')
+
+    @staticmethod
+    def conv_block(x, filters, kernel_size, strides=2):
+        x = Conv2D(filters=filters,
+                   kernel_size=kernel_size,
+                   strides=strides,
+                   padding='same')(x)
+        x = BatchNormalization()(x)
+        x = ReLU()(x)
+        return x
+
+    @tf.function
+    def call(self, input, training=None, mask=None):
+        return self.model(input)
 
 class SetEncoder(tf.keras.Model):
 
@@ -65,3 +94,9 @@ class SetEncoder(tf.keras.Model):
         embedding = tf.reduce_mean(embedding, axis=1)
 
         return embedding
+
+if __name__ == '__main__':
+    import numpy as np
+    encoder = ConvEncoder()
+    out = encoder(np.random.uniform(0,1,[1, 32, 32, 3]))
+    print(out.shape)
