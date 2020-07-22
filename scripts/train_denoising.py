@@ -60,7 +60,7 @@ model = NeuralProcessHyperNet(
     siren_units=LATENT_DIM, hyper_units=LATENT_DIM, latent_dim=LATENT_DIM,  # number of units
     num_siren_layers=3, num_hyper_layers=1, num_encoder_layers=2,  # number of layers
     encoder_activation='sine', hyper_activation='relu', final_activation='sigmoid',  # activations
-    lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100.0, # Loss scaling
+    lambda_embedding=0.1, lambda_hyper=100., lambda_mse=100., # Loss scaling
     encoder='conv'
 )
 # instantiate model
@@ -77,6 +77,13 @@ learning_rate = tf.keras.optimizers.schedules.PolynomialDecay(0.00005, decay_ste
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0)
 
+@tf.function
+def loss_mae(y_true, y_pred):
+    # Note: This loss is slightly different from the paper.
+    # Note: This loss is MSE * channels. To compute true MSE, divide the loss value by number of channels.
+    diff = 1.0 / (PIXEL_NUMBER) * (tf.reduce_sum(tf.math.abs(y_true - y_pred), axis=[1, 2]))
+    diff = tf.reduce_mean(diff)
+    return diff
 
 @tf.function
 def loss_func(y_true, y_pred):
@@ -95,9 +102,9 @@ if not os.path.exists(checkpoint_dir):
     os.makedirs(checkpoint_dir)
 
 
-if os.path.exists(checkpoint_dir + 'checkpoint'):
-    print("Loaded weights for continued training !")
-    model.load_weights(checkpoint_path)
+#if os.path.exists(checkpoint_dir + 'checkpoint'):
+#    print("Loaded weights for continued training !")
+#    model.load_weights(checkpoint_path)
 
 timestamp = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
 logdir = os.path.join('../logs/cifar10/denoising/', timestamp)

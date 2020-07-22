@@ -26,6 +26,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
                  lambda_embedding: float = 0.1,
                  lambda_hyper: float = 100.0,
                  lambda_mse: float = 1.0,
+                 lambda_p:float = 0.
                  hypernet_param_count=None,
                  encoder=None,
                  **kwargs):
@@ -72,6 +73,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
         self.lambda_embedding = lambda_embedding
         self.lambda_hyper = lambda_hyper
         self.lambda_mse = lambda_mse
+        self.lambda_p = lambda_p
         self.hypernet_param_count = hypernet_param_count
 
         self.hyper_net = meta_siren_mlp.MetaSIRENModel(
@@ -100,13 +102,13 @@ class NeuralProcessHyperNet(tf.keras.Model):
 
         param_list = self.hyper_net(embeddings)
         decoded_images = self.hyper_net.inner_call(coords, param_list)
-        return decoded_images, embeddings
+        return decoded_images, embeddings, param_list
 
     @tf.function
     def train_step(self, data):
         with tf.GradientTape() as tape:
             original_image, coords, pixels, clean_pixels = data
-            decoded_images, embeddings = self.call(data)
+            decoded_images, embeddings, params = self.call(data)
             image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
             loss = self.lambda_mse * image_loss
 
@@ -125,7 +127,12 @@ class NeuralProcessHyperNet(tf.keras.Model):
 
             reg_loss = self.lambda_hyper / self.hypernet_param_count * tf.add_n(reg)
             loss += reg_loss
-
+            #params loss
+            p = []
+            for param in params:
+                p.append(tf.reduce_sum(tf.square(param)))
+            p_loss = 1 / tf.add_n(p)
+            loss += self.lambda_p * p_loss
         grads = tape.gradient(loss, self.set_encoder.trainable_variables + self.hyper_net.trainable_variables)
         grads_vars = zip(grads, self.set_encoder.trainable_variables + self.hyper_net.trainable_variables)
 
@@ -138,7 +145,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
     @tf.function
     def test_step(self, data):
         original_image, coords, pixels, clean_pixels = data
-        decoded_images, embeddings = self.call(data)
+        decoded_images, embeddings, params = self.call(data)
         image_loss = self.loss(y_true=clean_pixels, y_pred=decoded_images)
         loss = self.lambda_mse * image_loss
 
@@ -157,7 +164,12 @@ class NeuralProcessHyperNet(tf.keras.Model):
 
         reg_loss = self.lambda_hyper / self.hypernet_param_count * tf.add_n(reg)
         loss += reg_loss
-
+        #params loss
+        p = []
+        for param in params:
+            p.append(tf.reduce_sum(tf.square(param)))
+        p_loss = 1 / tf.add_n(p)
+        loss += p_loss
         # Note: `image_loss` is the *unscaled* image loss;
         # I.E. lambda_mse scaling is not applied to it. It is used only for logging.
         return {'loss': loss, 'image_loss': image_loss, 'embedding_loss': embedding_loss, 'reg_loss': reg_loss}
