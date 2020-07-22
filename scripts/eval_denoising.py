@@ -17,7 +17,7 @@ test_dataset_len = ds_info.splits['test'].num_examples
 
 
 
-test_ds = process_ds(test_ds, dataset_len=test_dataset_len, batch_size=1)
+test_ds = process_ds(test_ds, dataset_len=test_dataset_len, batch_size=1, shuffle=False)
 
 
 # Build model
