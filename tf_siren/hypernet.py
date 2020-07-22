@@ -26,7 +26,7 @@ class NeuralProcessHyperNet(tf.keras.Model):
                  lambda_embedding: float = 0.1,
                  lambda_hyper: float = 100.0,
                  lambda_mse: float = 1.0,
-                 lambda_p:float = 0.
+                 lambda_p:float = 0.,
                  hypernet_param_count=None,
                  encoder=None,
                  **kwargs):
