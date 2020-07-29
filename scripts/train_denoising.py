@@ -85,7 +85,7 @@ callbacks = [
     # Select lowest pixel mse loss as checkpoint saver.
     tf.keras.callbacks.ModelCheckpoint(checkpoint_dir + 'model', monitor='image_loss', verbose=0,
                                        save_best_only=True, save_weights_only=True, mode='min'),
-    tf.keras.callbacks.TensorBoard(logdir, update_freq='batch', profile_batch='500,520'),
+    tf.keras.callbacks.TensorBoard(logdir, update_freq='batch', profile_batch='500,520', histogram_freq=1),
     tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=1e-4, patience=2, verbose=1)
 ]
 
